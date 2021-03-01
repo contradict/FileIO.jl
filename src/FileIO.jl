@@ -23,8 +23,9 @@ export DataFormat,
        metadata
 
 import Base.showerror
-using Base: RefValue
+using Base: RefValue, PkgId
 using Pkg
+using UUIDs
 
 include("types.jl")
 include("registry_setup.jl")
@@ -62,9 +63,18 @@ include("registry.jl")
 """
 FileIO
 
-if VERSION >= v"1.4.2" # https://github.com/JuliaLang/julia/pull/35378
-    include("precompile.jl")
-    _precompile_()
+# if VERSION >= v"1.4.2" # https://github.com/JuliaLang/julia/pull/35378
+#     include("precompile.jl")
+#     _precompile_()
+# end
+
+function File(fmt::Type{DataFormat{sym}}, filename) where {sym}
+    Base.depwarn("`File(format\"$sym\", filename)` is deprecated, please use `File{format\"$sym\"}(filename)` instead.", :File)
+    return File{fmt}(filename)
+end
+function Stream(fmt::Type{DataFormat{sym}}, args...) where {sym}
+    Base.depwarn("`Stream(format\"$sym\", filename)` is deprecated, please use `Stream{format\"$sym\"}(filename)` instead.", :Stream)
+    return Stream{fmt}(args...)
 end
 
 end
