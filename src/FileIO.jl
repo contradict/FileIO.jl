@@ -76,5 +76,6 @@ function Stream(fmt::Type{DataFormat{sym}}, args...) where {sym}
     Base.depwarn("`Stream(format\"$sym\", filename)` is deprecated, please use `Stream{format\"$sym\"}(filename)` instead.", :Stream)
     return Stream{fmt}(args...)
 end
+# NOTE: additional depwarns in loadsave.jl
 
 end

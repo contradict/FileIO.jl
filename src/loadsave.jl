@@ -18,6 +18,7 @@ for (applicable_, add_, dict_) in (
         end
         $add_(sym::Symbol, pkg::Pair{<:Union{String,Symbol}, UUID}) = $add_(sym, Base.PkgId(pkg.second, String(pkg.first)))
         function $add_(fmt, pkg)
+            # TODO: delete this method in FileIO v2
             sym = isa(fmt, Symbol) ? fmt : formatname(fmt)::Symbol
             Base.depwarn(string($add_) * "(fmt, pkg::$(typeof(pkg))) is deprecated, supply `pkg` as a Module or `name=>uuid`", Symbol($add_))
             pkg === :MimeWriter && return $add_(sym, MimeWriter)
@@ -34,11 +35,26 @@ for (applicable_, add_, dict_) in (
                     end
                 end
                 if id === nothing
-                    # Look it up in the registries
+                    # Look it up in the registries. The tricky part here is supporting different Julia versions
                     ctx = Pkg.API.Context()
                     uuids = UUID[]
-                    for reg in ctx.registries
-                        append!(uuids, Pkg.Registry.uuids_from_name(reg, pkgname))
+                    @static if Base.VERSION >= v"1.2"
+                        if hasfield(typeof(ctx), :registries)
+                            for reg in ctx.registries
+                                append!(uuids, Pkg.Registry.uuids_from_name(reg, pkgname))
+                            end
+                        else
+                            ctx = Pkg.API.Context!(ctx)
+                            if isdefined(Pkg.Types, :find_registered!) && hasmethod(Pkg.Types.find_registered!, (typeof(ctx.env), Vector{String}))
+                                Pkg.Types.find_registered!(ctx.env, [pkgname])
+                            elseif isdefined(Pkg.Types, :find_registered!) && hasmethod(Pkg.Types.find_registered!, (typeof(ctx), Vector{String}))
+                                Pkg.Types.find_registered!(ctx, [pkgname])
+                            end
+                            append!(uuids, get(ctx.env.uuids, pkgname, UUID[]))
+                        end
+                    else
+                        Pkg.Types.find_registered!(ctx.env)
+                        append!(uuids, get(ctx.env.uuids, pkgname, UUID[]))
                     end
                     isempty(uuids) && throw(ArgumentError("no UUID found for $pkg"))
                     length(uuids) == 1 || throw(ArgumentError("multiple UUIDs found for $pkg"))
